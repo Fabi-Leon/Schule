@@ -1,106 +1,62 @@
-<html>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schulportal - Coming Soon</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #e0eafc, #cfdef3);
+            color: #1f2937;
+        }
 
-<div class="bgimg">
-  <div class="topleft">
-    <p>Logo</p>
-  </div>
-  <div class="middle">
-    <h1>COMING SOON</h1>
-    <hr>
-    <p>8 days</p>
-  </div>
-  <div class="bottomleft">
-    <p>Fabi & Leon</p>
-  </div>
-</div>
+        .gradient-text {
+            background: linear-gradient(45deg, #1c364c, #4a7698, #6098c4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+        }
 
-<style>
-/* Set height to 100% for body and html to enable the background image to cover the whole page: */
-body, html {
-  height: 100%
-}
+        .metallic-border {
+            box-shadow: 0 0 10px rgba(74, 118, 152, 0.5);
+            border: 2px solid #6098c4;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
-.bgimg {
-  /* Background image */
-  background-image: url('https://www.w3schools.com/w3images/forestbridge.jpg');
-  /* Full-screen */
-  height: 100%;
-  /* Center the background image */
-  background-position: center;
-  /* Scale and zoom in the image */
-  background-size: cover;
-  /* Add position: relative to enable absolutely positioned elements inside the image (place text) */
-  position: relative;
-  /* Add a white text color to all elements inside the .bgimg container */
-  color: white;
-  /* Add a font */
-  font-family: "Courier New", Courier, monospace;
-  /* Set the font-size to 25 pixels */
-  font-size: 25px;
-}
+    <div class="bg-white shadow-xl rounded-2xl p-8 max-w-xl w-full text-center metallic-border">
+        <div class="flex flex-col items-center">
+            <!-- Profilbild von Fabi & Leon -->
+            <img class="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-blue-500 mb-6" src="https://yt3.googleusercontent.com/2viuqW5Z4QTFOnSjOOhcK7K3dCq5JdFpGsqVtIO2RZKcCES9vY8uc1LLR_AzOqKIPA-cvaimh0dkpQ=s160-c-k-c0x00ffffff-no-rj" alt="Profilbild von Fabi & Leon">
 
-/* Position text in the top-left corner */
-.topleft {
-  position: absolute;
-  top: 0;
-  left: 16px;
-}
+            <h1 class="text-3xl sm:text-4xl md:text-5xl mb-4 gradient-text">
+                Coming Soon!
+            </h1>
 
-/* Position text in the bottom-left corner */
-.bottomleft {
-  position: absolute;
-  bottom: 0;
-  left: 16px;
-}
+            <p class="text-lg sm:text-xl text-gray-700 mb-6 font-semibold">
+                Euer neues Schulportal entsteht gerade!
+            </p>
 
-/* Position text in the middle */
-.middle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-}
+            <p class="text-base sm:text-lg text-gray-600 mb-8 max-w-sm mx-auto">
+                Hallo zusammen, wir sind Fabi & Leon. Wir treten als Team für das Amt des Schülersprechers an und hoffen, bald euer neues Schulportal zu eröffnen.
+            </p>
 
-/* Style the <hr> element */
-hr {
-  margin: auto;
-  width: 40%;
-}
+            <div class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 rounded-lg mb-6 max-w-md w-full" role="alert">
+                <p class="font-bold">Bald wird hier Leben geschaffen!</p>
+                <p>Folgt uns bei den Wahlen und bleibt gespannt auf Updates!</p>
+            </div>
 
+            <p class="text-sm text-gray-500">
+                Ein Projekt von Fabi & Leon für die Schülerschaft.
+            </p>
+        </div>
+    </div>
 
-  </style>
-
-  <script>
-
-  // Set the date we're counting down to
-var countDownDate = new Date("Oct 1, 2025 08:00:00").getTime();
-
-// Update the count down every 1 second
-var x = setInterval(function() {
-
-  // Get todays date and time
-  var now = new Date().getTime();
-
-  // Find the distance between now an the count down date
-  var distance = countDownDate - now;
-
-  // Time calculations for days, hours, minutes and seconds
-  var days = Math.floor(distance / (1000 * 60 * 60 * 24));
-  var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-  var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-
-  // Display the result in an element with id="demo"
-  document.getElementById("demo").innerHTML = days + "d " + hours + "h "
-  + minutes + "m " + seconds + "s ";
-
-  // If the count down is finished, write some text
-  if (distance < 0) {
-    clearInterval(x);
-    document.getElementById("demo").innerHTML = "EXPIRED";
-  }
-}, 1000);
-
-</script>
+</body>
 </html>
