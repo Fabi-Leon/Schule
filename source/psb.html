@@ -45,7 +45,9 @@
             <!-- Konfigurationsfehler-Meldung (wenn SECRET_PASSWORD fehlt) -->
             <div id="config-error" class="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 mb-6 rounded-lg hidden">
                 <p class="font-bold">Konfigurationsfehler</p>
-                <p>Das geheime Passwort (SECRET_PASSWORD) wurde nicht definiert. Zugang verweigert.</p>
+                <p>Das geheime Passwort (SECRET_PASSWORD) wurde nicht definiert oder ist leer. Zugang verweigert.</p>
+                <!-- NEU: Visuelles Debugging-Feedback -->
+                <p class="mt-2 text-sm text-red-800">Debug-Status der Variable: <span id="debug-status" class="font-mono bg-red-200 px-1 py-0.5 rounded text-red-900">Wird geprüft...</span></p>
             </div>
 
             <form id="password-form" onsubmit="checkPassword(event)">
@@ -98,10 +100,13 @@
         // Passwörter und Lockout-Regeln
         const MAX_ATTEMPTS = 3;
         
-        // NEUE PRÜFUNG: Sicherstellen, dass die Variable existiert und nicht leer ist.
-        // Wenn die Plattform die Variable als leeren String oder undefined setzt, wird REQUIRED_PASSWORD null.
-        const SECRET_VARIABLE = window.SECRET_PASSWORD;
+        // Wir verwenden eine Konstante für den Namen, um Tippfehler zu vermeiden
+        const SECRET_VARIABLE_NAME = 'SECRET_PASSWORD'; 
+        
+        // Versuchen Sie, die Variable aus dem globalen window-Objekt zu lesen
+        const SECRET_VARIABLE = window[SECRET_VARIABLE_NAME];
 
+        // REQUIRED_PASSWORD ist nur gültig, wenn es existiert, nicht null und nicht leer ist (nach Trimmen)
         const REQUIRED_PASSWORD = (
             typeof SECRET_VARIABLE !== 'undefined' && 
             SECRET_VARIABLE !== null && 
@@ -109,10 +114,10 @@
         ) ? String(SECRET_VARIABLE).trim() : null;
         
         // Lokale Speicherschlüssel
-        const ATTEMPTS_KEY = 'auth_attempts';          // Zählt die Fehlversuche (0 bis MAX_ATTEMPTS)
-        const LOCKOUT_KEY = 'lockout_until';          // Zeitstempel, bis wann gesperrt ist (wird persistent gespeichert)
-        const LOCKOUT_COUNT_KEY = 'lockout_count';    // Wie oft der Lockout ausgelöst wurde (für progressive Timeouts)
-        const SESSION_AUTH_KEY = 'is_authenticated';  // Speichert den erfolgreichen Login permanent
+        const ATTEMPTS_KEY = 'auth_attempts';          
+        const LOCKOUT_KEY = 'lockout_until';          
+        const LOCKOUT_COUNT_KEY = 'lockout_count';    
+        const SESSION_AUTH_KEY = 'is_authenticated';  
         
         let refreshInterval = null;
         let lockoutTimer = null;
@@ -123,13 +128,9 @@
 
         /**
          * Berechnet die progressive Dauer basierend auf der Anzahl der Lockouts.
-         * 1. Lockout: 30s, 2. Lockout: 60s, 3. Lockout: 120s, 4. Lockout: 240s...
-         * @param {number} count - Wie oft der Lockout bereits ausgelöst wurde.
-         * @returns {number} Dauer in Millisekunden.
          */
         function getProgressiveLockoutDuration(count) {
             const baseDuration = 30000; // 30 Sekunden
-            // Verdoppelt die Dauer bei jedem weiteren Lockout
             return baseDuration * Math.pow(2, count - 1); 
         }
 
@@ -162,19 +163,16 @@
         }
 
         /**
-         * Führt einen "unsichtbaren" Refresh des iFrames durch, indem die Src-URL neu gesetzt wird.
+         * Führt einen "unsichtbaren" Refresh des iFrames durch.
          */
         function refreshSheet() {
             const iframe = document.getElementById('sheet-iframe');
-            
-            // Um Cache-Probleme zu vermeiden, setzen wir die src neu
             iframe.src = SHEET_EMBED_URL;
         }
 
         function startRefreshLoop() {
             if (refreshInterval) clearInterval(refreshInterval);
-            refreshSheet(); // Erste Aktualisierung sofort durchführen
-            // Loop starten: Aktualisierung alle 5 Sekunden
+            refreshSheet(); 
             refreshInterval = setInterval(refreshSheet, 5000); 
         }
 
@@ -188,7 +186,7 @@
         // ====================================================================
 
         /**
-         * Prüft, ob der Benutzer gesperrt ist und aktualisiert die UI/Titel.
+         * Prüft, ob der Benutzer gesperrt oder das Passwort konfiguriert ist.
          * @returns {boolean} True, wenn gesperrt oder Konfigurationsfehler vorliegt.
          */
         function checkLockout() {
@@ -203,37 +201,51 @@
             const lockoutText = document.getElementById('lockout-text');
             const errorMsg = document.getElementById('error-message');
             const configError = document.getElementById('config-error');
+            const debugEl = document.getElementById('debug-status');
 
 
-            // 1. Konfigurationsprüfung
+            // 1. Konfigurationsprüfung (NEU: Visualisiert den Debug-Status)
             if (REQUIRED_PASSWORD === null) {
-                // Deaktiviert das Formular und zeigt den Fehler an
                 form.classList.add('hidden');
                 configError.classList.remove('hidden');
                 document.getElementById('header-title').textContent = "Konfiguration UNVOLLSTÄNDIG";
                 lockoutText.classList.add('hidden');
+                
+                // Debugging-Anzeige aktualisieren
+                let status = "N/A (Variable nicht gefunden)";
+                const rawValue = String(SECRET_VARIABLE || '').trim();
+
+                if (typeof SECRET_VARIABLE === 'undefined') {
+                    status = `FEHLER: ${SECRET_VARIABLE_NAME} = undefined`;
+                } else if (SECRET_VARIABLE === null) {
+                    status = `FEHLER: ${SECRET_VARIABLE_NAME} = null`;
+                } else if (rawValue === '') {
+                    status = `GEFUNDEN, aber leerer String ('')`;
+                } else {
+                     status = `OK (Länge: ${rawValue.length}), aber es sollte nicht HIER sein.`;
+                }
+
+                if (debugEl) debugEl.textContent = status;
+                
                 return true; // Blockiert den Zugriff
             } else {
-                // Konfiguration OK, Formular wird angezeigt
+                // Konfiguration OK
                 form.classList.remove('hidden');
                 configError.classList.add('hidden');
                 lockoutText.classList.remove('hidden');
             }
 
 
-            // 2. Lockout-Prüfung
+            // 2. Lockout-Prüfung (unverändert)
             if (isLocked) {
                 const duration = getProgressiveLockoutDuration(lockoutCount);
-                const durationSeconds = Math.round(duration / 1000);
 
-                // UI für Sperrung vorbereiten
                 form.classList.add('hidden');
                 errorMsg.classList.add('hidden');
                 document.getElementById('header-title').textContent = "Zugriff GESPERRT";
                 lockoutText.classList.remove('text-gray-500');
                 lockoutText.classList.add('text-red-600', 'font-bold');
                 
-                // Countdown-Timer starten/aktualisieren
                 const updateCountdown = () => {
                     const newLockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
                     const newNow = Date.now();
@@ -244,22 +256,20 @@
                         lockoutTimer = null;
                         localStorage.removeItem(LOCKOUT_KEY);
                         localStorage.removeItem(ATTEMPTS_KEY);
-                        initApp(); // Neu initialisieren, um das Formular anzuzeigen
+                        initApp(); 
                     } else {
                         lockoutText.innerHTML = `Zugriff gesperrt für <span class="underline decoration-dashed">${remainingSeconds}</span> Sekunden (Versuche: ${lockoutCount}x).`;
                         document.title = `Zugriff GESPERRT (${remainingSeconds}s)`;
                     }
                 };
 
-                // Wenn Timer noch nicht läuft, starten
                 if (!lockoutTimer) {
                     lockoutTimer = setInterval(updateCountdown, 1000);
                 }
-                updateCountdown(); // Sofort aktualisieren
+                updateCountdown(); 
 
                 return true;
             } else {
-                // Sperrung ist abgelaufen oder nicht vorhanden
                 if (lockoutTimer) {
                     clearInterval(lockoutTimer);
                     lockoutTimer = null;
@@ -268,7 +278,6 @@
                 const currentAttempts = parseInt(localStorage.getItem(ATTEMPTS_KEY) || '0', 10);
                 const attemptsLeft = MAX_ATTEMPTS - currentAttempts;
 
-                // UI für normale Abfrage zurücksetzen
                 input.disabled = false;
                 button.disabled = false;
                 document.getElementById('header-title').textContent = "Zugriff erforderlich";
@@ -284,26 +293,23 @@
         }
 
         /**
-         * Verarbeitet die Passworteingabe und Lockout-Zähler.
+         * Verarbeitet die Passworteingabe.
          */
         window.checkPassword = function(event) {
             event.preventDefault();
             
-            // Wenn Konfigurationsfehler oder Lockout, abbrechen.
+            // Abbrechen, wenn Konfigurationsfehler oder Lockout.
             if (REQUIRED_PASSWORD === null || checkLockout()) return; 
             
             const inputEl = document.getElementById('password-input');
             const input = inputEl.value;
             const errorMessage = document.getElementById('error-message');
             
-            // Passwort ist korrekt (NUR gegen REQUIRED_PASSWORD prüfen)
+            // Passwort ist korrekt
             if (input === REQUIRED_PASSWORD) {
                 errorMessage.classList.add('hidden');
                 
-                // Persistente Speicherung des Logins
                 localStorage.setItem(SESSION_AUTH_KEY, 'true'); 
-                
-                // Zähler und Lockout-Status zurücksetzen
                 localStorage.setItem(ATTEMPTS_KEY, '0');
                 localStorage.setItem(LOCKOUT_COUNT_KEY, '0'); 
                 localStorage.removeItem(LOCKOUT_KEY);
@@ -323,7 +329,6 @@
                 const attemptsLeft = MAX_ATTEMPTS - currentAttempts;
 
                 if (currentAttempts >= MAX_ATTEMPTS) {
-                    // Lockout Zähler erhöhen und Sperrzeit festlegen
                     let lockoutCount = parseInt(localStorage.getItem(LOCKOUT_COUNT_KEY) || '0', 10);
                     lockoutCount++;
                     localStorage.setItem(LOCKOUT_COUNT_KEY, lockoutCount.toString());
@@ -332,11 +337,9 @@
                     const lockoutUntil = Date.now() + lockoutDuration;
                     localStorage.setItem(LOCKOUT_KEY, lockoutUntil.toString());
                     
-                    // UI aktualisieren (zeigt den Countdown)
                     checkLockout(); 
                     
                 } else {
-                    // Fehler anzeigen und Zähler aktualisieren
                     errorMessage.classList.remove('hidden');
                     document.getElementById('attempts-left').textContent = attemptsLeft;
                 }
@@ -344,49 +347,34 @@
         }
 
         /**
-         * Setzt den permanenten Login-Status zurück und sperrt die Ansicht.
+         * Setzt den permanenten Login-Status zurück.
          */
         window.logOut = function() {
-             // Verwende eine benutzerdefinierte Meldung statt window.confirm()
             if (confirm("Sind Sie sicher, dass Sie sich abmelden möchten? Der Login-Status wird gelöscht.")) {
                 stopRefreshLoop();
-                localStorage.removeItem(SESSION_AUTH_KEY); // Permanenten Login-Status löschen
-                
-                // Das Eingabefeld leeren
+                localStorage.removeItem(SESSION_AUTH_KEY); 
                 document.getElementById('password-input').value = '';
-                
-                // Nach Abmeldung sofort Lockout prüfen und Passwort-View zeigen
                 initApp(); 
             }
         }
 
         /**
-         * Initialisiert die Anwendung und prüft den Authentifizierungsstatus.
+         * Initialisiert die Anwendung.
          */
         function initApp() {
-            // Debugging-Ausgabe zur Analyse des Passwort-Problems
-            const passwordState = REQUIRED_PASSWORD === null ? "FEHLT ODER IST LEER" : "OK (Passwortlänge: " + REQUIRED_PASSWORD.length + ")";
-            console.log(`Debug: Konfiguration des geheimen Passworts: ${passwordState}`);
+            // Logging ist jetzt in checkLockout() integriert, damit es auch bei Konfigurationsfehler sichtbar ist.
             
             // 1. Ladebildschirm ausblenden
             document.getElementById('loading-view').classList.add('opacity-0');
             setTimeout(() => document.getElementById('loading-view').classList.add('hidden'), 300);
 
-            // 2. Konfigurationsprüfung
-            if (REQUIRED_PASSWORD === null) {
-                showView('password-view');
-                checkLockout(); // Zeigt den Konfigurationsfehler
-                return;
-            }
-
-            // 3. Session-Status prüfen
+            // 2. Zustand prüfen (Konfiguration / Lockout / Authentifizierung)
             const isAuthenticated = localStorage.getItem(SESSION_AUTH_KEY) === 'true';
 
-            if (isAuthenticated) {
+            if (isAuthenticated && REQUIRED_PASSWORD !== null) {
                 showView('content-view');
                 startRefreshLoop();
             } else {
-                // 4. Lockout-Status prüfen (wird auch im Falle einer Sperrung die UI updaten)
                 showView('password-view');
                 checkLockout(); 
             }
