@@ -3,20 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sichere Datenansicht</title>
+    <title id="page-title">Lade Anwendung...</title>
     <!-- Tailwind CSS CDN für modernes Design -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Angepasste Schriftart */
+        /* Angepasste Schriftart und Fullscreen-Layout */
         body { font-family: 'Inter', sans-serif; }
-        /* Sicherstellen, dass die Inhaltsansicht den gesamten Bildschirm ausfüllt */
-        #content-view { min-height: 100vh; }
+        .full-screen-content { min-height: 100vh; width: 100%; }
+        /* Platz für Header/Button lassen */
+        .iframe-container {
+            width: 100%;
+            height: calc(100vh - 120px); 
+            overflow: hidden;
+            position: relative;
+        }
+        /* Style, um den iframe immer im Fullscreen des Containers zu halten */
+        .iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-50 text-gray-800 overflow-hidden">
 
-    <!-- Ladebildschirm/Overlay -->
-    <div id="loading-view" class="fixed inset-0 bg-white flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+    <!-- Ladebildschirm/Overlay (sollte schnell verschwinden) -->
+    <div id="loading-view" class="fixed inset-0 bg-white flex flex-col items-center justify-center z-50 transition-opacity duration-300 opacity-100">
         <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -24,23 +36,23 @@
         <p class="mt-4 text-lg font-medium text-gray-600">Lade Anwendung...</p>
     </div>
 
-    <!-- 1. Passwort-Eingabeansicht (Standardmäßig ausgeblendet, bis geladen) -->
-    <div id="password-view" class="hidden min-h-screen flex items-center justify-center p-4">
-        <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl transition duration-500 hover:shadow-indigo-300/50 border border-gray-100">
-            <h1 class="text-3xl font-extrabold text-center text-indigo-600 mb-2">Zugriff erforderlich</h1>
-            <p class="text-center text-gray-500 mb-6">Bitte geben Sie das erforderliche Passwort ein.</p>
+    <!-- 1. Passwort-Eingabeansicht -->
+    <div id="password-view" class="hidden full-screen-content flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl border border-gray-100">
+            <h1 class="text-3xl font-extrabold text-center text-indigo-600 mb-2" id="header-title">Zugriff erforderlich</h1>
+            <p class="text-center text-gray-500 mb-6" id="lockout-text">Bitte geben Sie das erforderliche Passwort ein.</p>
 
             <form id="password-form" onsubmit="checkPassword(event)">
                 <div class="mb-4">
                     <label for="password-input" class="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
-                    <input type="password" id="password-input" required
+                    <input type="password" id="password-input" required autocomplete="off"
                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
                            placeholder="••••••••">
                 </div>
                 
-                <p id="error-message" class="text-red-600 text-sm mb-4 hidden font-medium text-center">Falsches Passwort. Bitte versuchen Sie es erneut.</p>
+                <p id="error-message" class="text-red-600 text-sm mb-4 hidden font-medium text-center">Falsches Passwort. (Versuche verbleibend: <span id="attempts-left">3</span>)</p>
 
-                <button type="submit"
+                <button type="submit" id="submit-button"
                         class="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-200 shadow-md shadow-indigo-500/50 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
                     Zugriff gewähren
                 </button>
@@ -48,151 +60,70 @@
         </div>
     </div>
 
-    <!-- 2. Geschützte Inhaltsansicht (Standardmäßig ausgeblendet) -->
-    <div id="content-view" class="hidden p-4 sm:p-8 bg-gray-900 text-white">
-        <header class="mb-6">
-            <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-400">Vertrauliche Datenübersicht</h1>
-            <p class="text-gray-400 mt-1">Die Daten werden im Hintergrund automatisch aktualisiert. (Letzte Aktualisierung: <span id="last-update">...</span>)</p>
-            <button onclick="logOut()" class="mt-4 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
+    <!-- 2. Geschützte Inhaltsansicht (Fullscreen Tabelle) -->
+    <div id="content-view" class="hidden full-screen-content flex flex-col bg-gray-900 text-white">
+        <header class="p-4 sm:p-6 flex justify-between items-center bg-gray-800 shadow-lg">
+            <div>
+                <h1 class="text-2xl sm:text-3xl font-extrabold text-indigo-400">Vertrauliche Datenübersicht</h1>
+                <p class="text-gray-400 mt-1 text-sm">Datenblatt wird im Hintergrund alle 5 Sekunden aktualisiert.</p>
+            </div>
+            <button onclick="logOut()" 
+                    class="ml-4 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
                 Abmelden & Sperren
             </button>
         </header>
         
-        <!-- Tabelle, die alle paar Sekunden neu geladen wird -->
-        <div class="overflow-x-auto rounded-xl shadow-lg shadow-indigo-900/50">
-            <table class="min-w-full divide-y divide-gray-700" id="data-table">
-                <thead class="bg-indigo-700 text-indigo-100 sticky top-0">
-                    <tr>
-                        <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider">ID</th>
-                        <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider">Produkt</th>
-                        <th class="py-3 px-4 text-right text-xs font-semibold uppercase tracking-wider">Umsatz (Tsd.)</th>
-                        <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider">Status</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-gray-800 divide-y divide-gray-700" id="table-body">
-                    <!-- Daten werden hier per JavaScript eingefügt -->
-                    <tr><td colspan="4" class="text-center py-8 text-gray-500">Lade Daten...</td></tr>
-                </tbody>
-            </table>
+        <!-- Google Sheets Einbettung (Fullscreen) -->
+        <div class="flex-grow iframe-container">
+            <iframe id="sheet-iframe" title="Eingebettetes Google Sheet" 
+                    src="" allowfullscreen>
+            </iframe>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script>
+        // ====================================================================
+        // KONSTANTEN und INITIALISIERUNG
+        // ====================================================================
+        
+        // Google Sheets Embed URL für die Freigabeansicht
+        const SHEET_EMBED_URL = 'https://docs.google.com/spreadsheets/u/0/d/10um-Jwoayka_kPFUsnQkCmm7pMq0Z2qK2ptVIjenWMw/htmlview';
+        
+        // Passwörter und Lockout-Regeln
+        const HARDCODED_PASSWORD = "mein_geheimes_passwort"; 
+        const MAX_ATTEMPTS = 3;
+        
+        // Passworteinstellung: Priorisiert Umgebungsvariable, falls vorhanden
+        const SECRET_PASSWORD = (typeof window.SECRET_PASSWORD !== 'undefined' ? window.SECRET_PASSWORD : HARDCODED_PASSWORD);
 
-        // Firebase Logging aktivieren
-        setLogLevel('Debug');
-
-        // Globale Variablen aus der Canvas-Umgebung
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Das geheime Passwort, das im Reader festgelegt werden soll
-        const SECRET_PASSWORD = "PASSWORT0815"; // <--- HIER DAS PASSWORT ANPASSEN!
-
-        // Firebase Instanzen
-        let app, db, auth;
-        let userId = null;
+        // Lokale Speicherschlüssel
+        const ATTEMPTS_KEY = 'auth_attempts';          // Zählt die Fehlversuche (0 bis MAX_ATTEMPTS)
+        const LOCKOUT_KEY = 'lockout_until';          // Zeitstempel, bis wann gesperrt ist (wird persistent gespeichert)
+        const LOCKOUT_COUNT_KEY = 'lockout_count';    // Wie oft der Lockout ausgelöst wurde (für progressive Timeouts)
+        const SESSION_AUTH_KEY = 'is_authenticated';  // Speichert den erfolgreichen Login permanent
+        
         let refreshInterval = null;
-        const STATE_DOC_ID = 'state'; // Fester Dokumenten-ID für den Status
+        let lockoutTimer = null;
 
-        // Initialisiere Firebase und Authentifiziere
-        async function initFirebase() {
-            try {
-                if (Object.keys(firebaseConfig).length === 0) {
-                    console.error("Firebase Config fehlt. Die Persistenz wird nicht funktionieren.");
-                    return;
-                }
+        // ====================================================================
+        // HILFSFUNKTIONEN
+        // ====================================================================
 
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-
-                // Authentifizierung
-                await new Promise((resolve, reject) => {
-                    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-                        unsubscribe(); // Listener nach erster Ausführung entfernen
-                        if (user) {
-                            userId = user.uid;
-                            resolve();
-                        } else {
-                            try {
-                                if (initialAuthToken) {
-                                    await signInWithCustomToken(auth, initialAuthToken);
-                                } else {
-                                    await signInAnonymously(auth);
-                                }
-                                userId = auth.currentUser.uid;
-                                resolve();
-                            } catch (error) {
-                                console.error("Firebase Auth Fehler:", error);
-                                reject(error);
-                            }
-                        }
-                    });
-                });
-
-                console.log("Firebase initialisiert und Benutzer-ID:", userId);
-
-                // Start der Hauptanwendung
-                await initApp();
-
-            } catch (error) {
-                console.error("Fehler bei der Firebase-Initialisierung:", error);
-                showView('password-view'); // Im Fehlerfall direkt Passwortabfrage zeigen
-            } finally {
-                // Ladebildschirm ausblenden
-                document.getElementById('loading-view').classList.add('opacity-0');
-                setTimeout(() => document.getElementById('loading-view').classList.add('hidden'), 300);
-            }
+        /**
+         * Berechnet die progressive Dauer basierend auf der Anzahl der Lockouts.
+         * 1. Lockout: 30s, 2. Lockout: 60s, 3. Lockout: 120s, 4. Lockout: 240s...
+         * @param {number} count - Wie oft der Lockout bereits ausgelöst wurde.
+         * @returns {number} Dauer in Millisekunden.
+         */
+        function getProgressiveLockoutDuration(count) {
+            const baseDuration = 30000; // 30 Sekunden
+            return baseDuration * Math.pow(2, count - 1);
         }
 
-        // Hauptinitialisierung: Prüft den gespeicherten Zustand
-        async function initApp() {
-            if (!userId) {
-                showView('password-view');
-                return;
-            }
+        // ====================================================================
+        // UI- & VIEW-FUNKTIONEN
+        // ====================================================================
 
-            const stateRef = doc(db, 'artifacts', appId, 'users', userId, 'password_status', STATE_DOC_ID);
-            
-            try {
-                const docSnap = await getDoc(stateRef);
-                if (docSnap.exists() && docSnap.data().status === 'correct') {
-                    console.log("Gespeicherter Status ist korrekt. Direkter Zugriff.");
-                    showView('content-view');
-                    startRefreshLoop();
-                } else {
-                    console.log("Kein korrekter Status gefunden. Passwortabfrage anzeigen.");
-                    showView('password-view');
-                }
-            } catch (error) {
-                console.error("Fehler beim Abrufen des Status:", error);
-                showView('password-view');
-            }
-        }
-
-        // Speichert den Status (Korrekt/Falsch) in Firestore
-        async function saveStatus(status) {
-            if (!userId || !db) return;
-            const stateRef = doc(db, 'artifacts', appId, 'users', userId, 'password_status', STATE_DOC_ID);
-            
-            try {
-                await setDoc(stateRef, { 
-                    status: status, 
-                    timestamp: new Date().toISOString() 
-                }, { merge: true });
-                console.log("Status erfolgreich in Firestore gespeichert:", status);
-            } catch (error) {
-                console.error("Fehler beim Speichern des Status:", error);
-            }
-        }
-
-        // Wechsel zwischen den Ansichten (Modale)
         function showView(viewId) {
             document.getElementById('password-view').classList.add('hidden');
             document.getElementById('content-view').classList.add('hidden');
@@ -201,127 +132,222 @@
             if (targetView) {
                 targetView.classList.remove('hidden');
             }
-        }
 
-        // Generiert zufällige/simulierte Daten für die Tabelle
-        function generateTableData() {
-            const data = [];
-            const products = ["Alpha-Sensor", "Beta-Unit", "Gamma-Chip", "Delta-Modul", "Epsilon-Fusion", "Zeta-Kapsel"];
-            const statuses = ["Hohe Nachfrage", "Stabil", "Wartung", "Kritisch"];
-
-            for (let i = 0; i < 6; i++) {
-                const revenue = Math.floor(Math.random() * 900) + 100; // 100 bis 999
-                data.push({
-                    id: 1000 + i,
-                    product: products[i % products.length],
-                    revenue: revenue.toLocaleString('de-DE'),
-                    status: statuses[Math.floor(Math.random() * statuses.length)],
-                    statusColor: statuses[Math.floor(Math.random() * statuses.length)] === "Kritisch" ? 'bg-red-500' : 'bg-green-500'
-                });
+            // Dynamischer HTML-Titel
+            if (viewId === 'password-view') {
+                const lockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
+                if (Date.now() < lockoutUntil) {
+                    document.title = "Zugriff GESPERRT";
+                } else {
+                    document.title = "Passwort erforderlich";
+                }
+            } else if (viewId === 'content-view') {
+                document.title = "Geschützte Datenansicht (Eingeloggt)";
             }
-            return data;
         }
 
-        // Aktualisiert die Tabelle mit neuen Daten
-        function updateTableData() {
-            const data = generateTableData();
-            const tableBody = document.getElementById('table-body');
-            tableBody.innerHTML = ''; // Vorherige Daten entfernen
+        /**
+         * Führt einen "unsichtbaren" Refresh des iFrames durch, indem die Src-URL neu gesetzt wird.
+         */
+        function refreshSheet() {
+            const iframe = document.getElementById('sheet-iframe');
             
-            data.forEach(item => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-700 transition duration-100 border-b border-gray-700';
-                
-                // Status-Badge Logik
-                let statusClass = 'bg-gray-600';
-                if (item.status === 'Hohe Nachfrage') statusClass = 'bg-indigo-600';
-                else if (item.status === 'Stabil') statusClass = 'bg-emerald-600';
-                else if (item.status === 'Kritisch') statusClass = 'bg-red-600';
-
-                row.innerHTML = `
-                    <td class="py-3 px-4 text-sm font-medium text-gray-300">${item.id}</td>
-                    <td class="py-3 px-4 text-sm font-medium">${item.product}</td>
-                    <td class="py-3 px-4 text-sm text-right font-bold text-teal-400">${item.revenue} €</td>
-                    <td class="py-3 px-4 text-sm">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusClass} text-white">
-                            ${item.status}
-                        </span>
-                    </td>
-                `;
-                tableBody.appendChild(row);
-            });
-            
-            // Uhrzeit der letzten Aktualisierung aktualisieren
-            document.getElementById('last-update').textContent = new Date().toLocaleTimeString('de-DE');
-            console.log("Tabelle erfolgreich aktualisiert.");
+            // Um Cache-Probleme zu vermeiden, setzen wir die src neu
+            iframe.src = SHEET_EMBED_URL;
         }
 
-        // Startet den automatischen Aktualisierungs-Loop (alle 5 Sekunden)
         function startRefreshLoop() {
             if (refreshInterval) clearInterval(refreshInterval);
-            // Erste Aktualisierung sofort durchführen
-            updateTableData(); 
+            refreshSheet(); // Erste Aktualisierung sofort durchführen
             // Loop starten: Aktualisierung alle 5 Sekunden
-            refreshInterval = setInterval(updateTableData, 5000); 
-            console.log("Automatischer Daten-Refresh-Loop gestartet.");
+            refreshInterval = setInterval(refreshSheet, 5000); 
         }
 
-        // Stoppt den Aktualisierungs-Loop
         function stopRefreshLoop() {
             if (refreshInterval) clearInterval(refreshInterval);
             refreshInterval = null;
         }
 
-        // Überprüft das eingegebene Passwort
-        window.checkPassword = async function(event) {
-            event.preventDefault();
-            const input = document.getElementById('password-input').value;
-            const errorMessage = document.getElementById('error-message');
+        // ====================================================================
+        // LOCKOUT- & AUTHENTIFIZIERUNGS-LOGIK
+        // ====================================================================
 
-            if (input === SECRET_PASSWORD) {
-                errorMessage.classList.add('hidden');
+        /**
+         * Prüft, ob der Benutzer gesperrt ist und aktualisiert die UI/Titel.
+         * @returns {boolean} True, wenn gesperrt.
+         */
+        function checkLockout() {
+            const lockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
+            const lockoutCount = parseInt(localStorage.getItem(LOCKOUT_COUNT_KEY) || '0', 10);
+            const now = Date.now();
+            const isLocked = now < lockoutUntil;
+
+            const form = document.getElementById('password-form');
+            const button = document.getElementById('submit-button');
+            const lockoutText = document.getElementById('lockout-text');
+            const errorMsg = document.getElementById('error-message');
+
+            if (isLocked) {
+                const duration = getProgressiveLockoutDuration(lockoutCount);
+                const durationSeconds = Math.round(duration / 1000);
+
+                // UI für Sperrung vorbereiten
+                form.classList.add('hidden');
+                errorMsg.classList.add('hidden');
+                document.getElementById('header-title').textContent = "Zugriff GESPERRT";
+                lockoutText.classList.remove('text-gray-500');
+                lockoutText.classList.add('text-red-600', 'font-bold');
                 
-                // 1. Status speichern
-                await saveStatus('correct');
+                // Countdown-Timer starten/aktualisieren
+                const updateCountdown = () => {
+                    const newLockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
+                    const newNow = Date.now();
+                    const remainingSeconds = Math.ceil((newLockoutUntil - newNow) / 1000);
+                    
+                    if (remainingSeconds <= 0) {
+                        clearInterval(lockoutTimer);
+                        lockoutTimer = null;
+                        localStorage.removeItem(LOCKOUT_KEY);
+                        localStorage.removeItem(ATTEMPTS_KEY);
+                        initApp(); // Neu initialisieren, um das Formular anzuzeigen
+                    } else {
+                        lockoutText.innerHTML = `Zugriff gesperrt für <span class="underline decoration-dashed">${remainingSeconds}</span> Sekunden (Fehler: ${lockoutCount}/${durationSeconds}s).`;
+                        document.title = `Zugriff GESPERRT (${remainingSeconds}s)`;
+                    }
+                };
 
-                // 2. Ansicht wechseln
-                showView('content-view');
+                // Wenn Timer noch nicht läuft, starten
+                if (!lockoutTimer) {
+                    lockoutTimer = setInterval(updateCountdown, 1000);
+                }
+                updateCountdown(); // Sofort aktualisieren
 
-                // 3. Refresh Loop starten
-                startRefreshLoop();
-                
+                return true;
             } else {
-                // 1. Status speichern (optional, kann Fehlerprotokolle füllen)
-                await saveStatus('incorrect');
+                // Sperrung ist abgelaufen oder nicht vorhanden
+                if (lockoutTimer) {
+                    clearInterval(lockoutTimer);
+                    lockoutTimer = null;
+                }
                 
-                // 2. Fehlermeldung anzeigen
-                errorMessage.classList.remove('hidden');
+                const currentAttempts = parseInt(localStorage.getItem(ATTEMPTS_KEY) || '0', 10);
+                const attemptsLeft = MAX_ATTEMPTS - currentAttempts;
+
+                // UI für normale Abfrage zurücksetzen
+                form.classList.remove('hidden');
+                button.disabled = false;
+                document.getElementById('header-title').textContent = "Zugriff erforderlich";
+                lockoutText.classList.remove('text-red-600', 'font-bold');
+                lockoutText.classList.add('text-gray-500');
+                lockoutText.textContent = "Bitte geben Sie das erforderliche Passwort ein.";
+                
+                const attemptsEl = document.getElementById('attempts-left');
+                if (attemptsEl) attemptsEl.textContent = attemptsLeft;
+                
+                return false;
             }
         }
 
-        // Meldet den Benutzer ab und sperrt die Seite
-        window.logOut = async function() {
-             if (confirm("Sind Sie sicher, dass Sie sich abmelden möchten? Sie müssen das Passwort erneut eingeben.")) {
-                // 1. Status zurücksetzen (sperren)
-                await saveStatus('locked');
+        /**
+         * Verarbeitet die Passworteingabe und Lockout-Zähler.
+         */
+        window.checkPassword = function(event) {
+            event.preventDefault();
+            
+            if (checkLockout()) return; 
+            
+            const inputEl = document.getElementById('password-input');
+            const input = inputEl.value;
+            const errorMessage = document.getElementById('error-message');
+            
+            // Passwort ist korrekt
+            if (input === SECRET_PASSWORD) {
+                errorMessage.classList.add('hidden');
                 
-                // 2. Refresh Loop stoppen
+                // Persistente Speicherung des Logins
+                localStorage.setItem(SESSION_AUTH_KEY, 'true'); 
+                
+                // Zähler und Lockout-Status zurücksetzen
+                localStorage.setItem(ATTEMPTS_KEY, '0');
+                localStorage.setItem(LOCKOUT_COUNT_KEY, '0'); 
+                localStorage.removeItem(LOCKOUT_KEY);
+                
+                inputEl.value = ''; 
+                
+                showView('content-view');
+                startRefreshLoop();
+                
+            } 
+            // Passwort ist falsch
+            else {
+                let currentAttempts = parseInt(localStorage.getItem(ATTEMPTS_KEY) || '0', 10);
+                currentAttempts++;
+                localStorage.setItem(ATTEMPTS_KEY, currentAttempts.toString());
+
+                const attemptsLeft = MAX_ATTEMPTS - currentAttempts;
+
+                if (currentAttempts >= MAX_ATTEMPTS) {
+                    // Lockout Zähler erhöhen und Sperrzeit festlegen
+                    let lockoutCount = parseInt(localStorage.getItem(LOCKOUT_COUNT_KEY) || '0', 10);
+                    lockoutCount++;
+                    localStorage.setItem(LOCKOUT_COUNT_KEY, lockoutCount.toString());
+
+                    const lockoutDuration = getProgressiveLockoutDuration(lockoutCount);
+                    const lockoutUntil = Date.now() + lockoutDuration;
+                    localStorage.setItem(LOCKOUT_KEY, lockoutUntil.toString());
+                    
+                    // UI aktualisieren (zeigt den Countdown)
+                    checkLockout(); 
+                    
+                } else {
+                    // Fehler anzeigen und Zähler aktualisieren
+                    errorMessage.classList.remove('hidden');
+                    document.getElementById('attempts-left').textContent = attemptsLeft;
+                }
+            }
+        }
+
+        /**
+         * Setzt den permanenten Login-Status zurück und sperrt die Ansicht.
+         */
+        window.logOut = function() {
+             // Verwende eine benutzerdefinierte Meldung statt window.confirm()
+            if (confirm("Sind Sie sicher, dass Sie sich abmelden möchten? Der Login-Status wird gelöscht.")) {
                 stopRefreshLoop();
+                localStorage.removeItem(SESSION_AUTH_KEY); // Permanenten Login-Status löschen
                 
-                // 3. Eingabefeld leeren und zur Passwort-Ansicht wechseln
+                // Das Eingabefeld leeren
                 document.getElementById('password-input').value = '';
+                
+                // Nach Abmeldung sofort Lockout prüfen und Passwort-View zeigen
+                initApp(); 
+            }
+        }
+
+        /**
+         * Initialisiert die Anwendung und prüft den Authentifizierungsstatus.
+         */
+        function initApp() {
+            // 1. Ladebildschirm ausblenden
+            document.getElementById('loading-view').classList.add('opacity-0');
+            setTimeout(() => document.getElementById('loading-view').classList.add('hidden'), 300);
+
+            // 2. Session-Status prüfen
+            const isAuthenticated = localStorage.getItem(SESSION_AUTH_KEY) === 'true';
+
+            if (isAuthenticated) {
+                showView('content-view');
+                startRefreshLoop();
+            } else {
+                // 3. Lockout-Status prüfen (wird auch im Falle einer Sperrung die UI updaten)
                 showView('password-view');
+                checkLockout(); 
             }
         }
 
         // App starten, sobald das Fenster geladen ist
-        window.onload = initFirebase;
+        window.onload = initApp;
         
-        // Exponiere Funktionen für HTML-Elemente
-        window.startRefreshLoop = startRefreshLoop;
-        window.checkPassword = checkPassword;
-        window.logOut = logOut;
-
     </script>
 </body>
 </html>
