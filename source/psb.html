@@ -42,11 +42,15 @@
             <h1 class="text-3xl font-extrabold text-center text-indigo-600 mb-2" id="header-title">Zugriff erforderlich</h1>
             <p class="text-center text-gray-500 mb-6" id="lockout-text">Bitte geben Sie das erforderliche Passwort ein.</p>
 
-            <!-- Konfigurationsfehler-Meldung (jetzt nur bei leerem Fallback sichtbar) -->
+            <!-- Konfigurationsfehler-Meldung (jetzt für beide Variablen sichtbar) -->
             <div id="config-error" class="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 mb-6 rounded-lg hidden">
-                <p class="font-bold">Konfigurationsfehler: Passwort fehlt</p>
-                <p>Bitte tragen Sie das Passwort direkt im Code (in der Variablen `HARDCODED_SECRET_FALLBACK`) ein, da die Umgebungsvariable nicht übergeben wird.</p>
-                <p class="mt-2 text-sm text-red-800">Aktueller Status: <span id="debug-status" class="font-mono bg-red-200 px-1 py-0.5 rounded text-red-900"></span></p>
+                <p class="font-bold">Konfigurationsfehler: Anwendung nicht bereit</p>
+                <p id="config-error-message">Mindestens eine notwendige Variable fehlt.</p>
+                <!-- NEU: Visuelles Debugging-Feedback -->
+                <ul class="mt-3 text-sm text-red-800 space-y-1 font-mono">
+                    <li><span class="font-semibold">Passwort-Status:</span> <span id="debug-status-password"></span></li>
+                    <li><span class="font-semibold">URL-Status:</span> <span id="debug-status-url"></span></li>
+                </ul>
             </div>
 
             <form id="password-form" onsubmit="checkPassword(event)">
@@ -90,32 +94,43 @@
 
     <script>
         // ====================================================================
-        // WICHTIGE KONFIGURATION
+        // WICHTIGE KONFIGURATION (MUSS ANGEPASST WERDEN)
         // ====================================================================
         
-        // !!! AKTION ERFORDERLICH !!!
-        // Da die Umgebungsvariable SECRET_PASSWORD nicht im Browser ankommt, 
-        // muss das Passwort hier als Notfall-Fallback hinterlegt werden.
-        // ERSETZEN SIE DEN PLATZHALTER mit Ihrem Passwort (als String).
-        const HARDCODED_SECRET_FALLBACK = 'YOUR_SECRET_RENDER_PASSWORD_HERE'; 
+        // !!! AKTION ERFORDERLICH: PASSWORT HIER EINTRAGEN !!!
+        // Da SECRET_PASSWORD nicht injiziert wird, muss der Wert hier als Fallback hinterlegt werden.
+        const SECRET_FALLBACK = 'PASST_DEIN_GEHEIMES_PASSWORT_HIER_EIN'; 
 
-        // Google Sheets Embed URL für die Freigabeansicht
-        const SHEET_EMBED_URL = 'https://docs.google.com/spreadsheets/u/0/d/10um-Jwoayka_kPFUsnQkCmm7pMq0Z2qK2ptVIjenWMw/htmlview';
+        // !!! AKTION ERFORDERLICH: GOOGLE_URL HIER EINTRAGEN !!!
+        // Da GOOGLE_URL nicht injiziert wird, muss der Wert hier als Fallback hinterlegt werden.
+        const URL_FALLBACK = 'https://docs.google.com/spreadsheets/u/0/d/10um-Jwoayka_kPFUsnQkCmm7pMq0Z2qK2ptVIjenWMw/htmlview';
         
         // Passwörter und Lockout-Regeln
         const MAX_ATTEMPTS = 3;
         
-        // Auslesen der Umgebungsvariable (die nicht funktioniert)
+        // Umgebungsvariablen-Namen
         const SECRET_VARIABLE_NAME = 'SECRET_PASSWORD'; 
-        const INJECTED_SECRET = window[SECRET_VARIABLE_NAME];
+        const URL_VARIABLE_NAME = 'GOOGLE_URL'; 
 
-        // Die App verwendet zuerst die injizierte Variable, falls vorhanden, 
-        // ansonsten den hartkodierten Fallback.
+        // Auslesen der potenziell injizierten Variablen
+        const INJECTED_SECRET = window[SECRET_VARIABLE_NAME];
+        const INJECTED_URL = window[URL_VARIABLE_NAME];
+        
+        // ENDGÜLTIGE WERTE: Priorisiert Injektion, fällt auf Fallback zurück.
+        
+        // 1. Passwort
         const REQUIRED_PASSWORD = (
             typeof INJECTED_SECRET !== 'undefined' && 
             INJECTED_SECRET !== null && 
             String(INJECTED_SECRET).trim() !== ''
-        ) ? String(INJECTED_SECRET).trim() : (HARDCODED_SECRET_FALLBACK.trim() !== 'YOUR_SECRET_RENDER_PASSWORD_HERE' ? HARDCODED_SECRET_FALLBACK.trim() : null);
+        ) ? String(INJECTED_SECRET).trim() : (SECRET_FALLBACK.trim() !== 'PASST_DEIN_GEHEIMES_PASSWORT_HIER_EIN' ? SECRET_FALLBACK.trim() : null);
+
+        // 2. URL
+        const SHEET_EMBED_URL = (
+            typeof INJECTED_URL !== 'undefined' && 
+            INJECTED_URL !== null && 
+            String(INJECTED_URL).trim() !== ''
+        ) ? String(INJECTED_URL).trim() : (URL_FALLBACK.trim() !== 'https://docs.google.com/spreadsheets/u/0/d/10um-Jwoayka_kPFUsnQkCmm7pMq0Z2qK2ptVIjenWMw/htmlview' ? URL_FALLBACK.trim() : null);
         
         // Lokale Speicherschlüssel
         const ATTEMPTS_KEY = 'auth_attempts';          
@@ -156,8 +171,8 @@
                 const lockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
                 if (Date.now() < lockoutUntil) {
                     document.title = "Zugriff GESPERRT";
-                } else if (REQUIRED_PASSWORD === null) {
-                    document.title = "Fehler: Passwort fehlt";
+                } else if (REQUIRED_PASSWORD === null || SHEET_EMBED_URL === null) {
+                    document.title = "Fehler: Konfiguration fehlt";
                 } else {
                     document.title = "Passwort erforderlich";
                 }
@@ -171,7 +186,9 @@
          */
         function refreshSheet() {
             const iframe = document.getElementById('sheet-iframe');
-            iframe.src = SHEET_EMBED_URL;
+            if (SHEET_EMBED_URL) {
+                iframe.src = SHEET_EMBED_URL;
+            }
         }
 
         function startRefreshLoop() {
@@ -190,7 +207,7 @@
         // ====================================================================
 
         /**
-         * Prüft, ob der Benutzer gesperrt oder das Passwort konfiguriert ist.
+         * Prüft die Konfiguration und den Lockout-Status.
          * @returns {boolean} True, wenn gesperrt oder Konfigurationsfehler vorliegt.
          */
         function checkLockout() {
@@ -202,31 +219,56 @@
             const form = document.getElementById('password-form');
             const lockoutText = document.getElementById('lockout-text');
             const configError = document.getElementById('config-error');
-            const debugEl = document.getElementById('debug-status');
+            const configErrorMsg = document.getElementById('config-error-message');
+            const debugElPassword = document.getElementById('debug-status-password');
+            const debugElUrl = document.getElementById('debug-status-url');
             const errorMsg = document.getElementById('error-message');
+            
+            // --- DEBUG & KONFIGURATIONSPRÜFUNG ---
+            let isConfigError = false;
+            let debugStatusPass = "";
+            let debugStatusUrl = "";
 
-
-            // 1. Konfigurationsprüfung
+            // Passwort-Status
             if (REQUIRED_PASSWORD === null) {
+                isConfigError = true;
+                if (typeof INJECTED_SECRET === 'undefined' || INJECTED_SECRET === null) {
+                    debugStatusPass = `FEHLER: SECRET_PASSWORD nicht injiziert (window.undefined).`;
+                } else if (SECRET_FALLBACK.trim() === 'PASST_DEIN_GEHEIMES_PASSWORT_HIER_EIN') {
+                    debugStatusPass = `FEHLER: Platzhalter ('PASST_DEIN_...') ist noch gesetzt.`;
+                } else {
+                    debugStatusPass = `FEHLER: Unbekannt.`;
+                }
+            } else {
+                 debugStatusPass = `OK (Länge: ${REQUIRED_PASSWORD.length}). Quelle: ${INJECTED_SECRET ? 'INJEKTION' : 'FALLBACK'}`;
+            }
+
+            // URL-Status
+            if (SHEET_EMBED_URL === null) {
+                isConfigError = true;
+                if (typeof INJECTED_URL === 'undefined' || INJECTED_URL === null) {
+                    debugStatusUrl = `FEHLER: GOOGLE_URL nicht injiziert (window.undefined).`;
+                } else if (URL_FALLBACK.includes('10um-Jwoayka')) { // Prüft auf den Default-Platzhalter
+                    debugStatusUrl = `FEHLER: Platzhalter URL ist noch gesetzt.`;
+                } else {
+                    debugStatusUrl = `FEHLER: Unbekannt.`;
+                }
+            } else {
+                 debugStatusUrl = `OK (Länge: ${SHEET_EMBED_URL.length}). Quelle: ${INJECTED_URL ? 'INJEKTION' : 'FALLBACK'}`;
+            }
+
+            debugElPassword.textContent = debugStatusPass;
+            debugElUrl.textContent = debugStatusUrl;
+            
+            // --- ANZEIGE DES KONFIGURATIONSFEHLERS ---
+            if (isConfigError) {
                 form.classList.add('hidden');
                 errorMsg.classList.add('hidden');
                 configError.classList.remove('hidden');
                 document.getElementById('header-title').textContent = "Konfiguration UNVOLLSTÄNDIG";
                 lockoutText.classList.add('hidden');
-                
-                // Debugging-Anzeige aktualisieren
-                let status = "Wird geprüft...";
-                if (INJECTED_SECRET) {
-                    status = `Gefunden (Injected): Ja (Länge: ${String(INJECTED_SECRET).trim().length})`;
-                } else if (HARDCODED_SECRET_FALLBACK.trim() !== 'YOUR_SECRET_RENDER_PASSWORD_HERE') {
-                    status = `Gefunden (Hardcoded): Ja (Länge: ${HARDCODED_SECRET_FALLBACK.trim().length})`;
-                } else {
-                    status = `FEHLER: Platzhalter ('YOUR_SECRET_RENDER_PASSWORD_HERE') ist noch gesetzt.`;
-                }
-
-                if (debugEl) debugEl.textContent = status;
-                
-                return true; // Blockiert den Zugriff
+                configErrorMsg.textContent = "Bitte ersetzen Sie die Platzhalter im Skript, da die Umgebungsvariablen nicht in den Browser injiziert werden.";
+                return true; 
             } else {
                 // Konfiguration OK
                 form.classList.remove('hidden');
@@ -235,10 +277,9 @@
             }
 
 
-            // 2. Lockout-Prüfung (unverändert)
+            // --- LOCKOUT-PRÜFUNG ---
             if (isLocked) {
                 const lockoutCount = parseInt(localStorage.getItem(LOCKOUT_COUNT_KEY) || '0', 10);
-
                 form.classList.add('hidden');
                 errorMsg.classList.add('hidden');
                 document.getElementById('header-title').textContent = "Zugriff GESPERRT";
@@ -298,7 +339,7 @@
             event.preventDefault();
             
             // Abbrechen, wenn Konfigurationsfehler oder Lockout.
-            if (REQUIRED_PASSWORD === null || checkLockout()) return; 
+            if (REQUIRED_PASSWORD === null || SHEET_EMBED_URL === null || checkLockout()) return; 
             
             const inputEl = document.getElementById('password-input');
             const input = inputEl.value;
@@ -349,7 +390,10 @@
          * Setzt den permanenten Login-Status zurück.
          */
         window.logOut = function() {
-            if (confirm("Sind Sie sicher, dass Sie sich abmelden möchten? Der Login-Status wird gelöscht.")) {
+            // Angepasstes UI-Modal für die Bestätigung
+            const confirmLogout = window.confirm ? window.confirm("Sind Sie sicher, dass Sie sich abmelden möchten? Der Login-Status wird gelöscht.") : true;
+
+            if (confirmLogout) {
                 stopRefreshLoop();
                 localStorage.removeItem(SESSION_AUTH_KEY); 
                 document.getElementById('password-input').value = '';
@@ -368,7 +412,7 @@
             // 2. Zustand prüfen (Konfiguration / Lockout / Authentifizierung)
             const isAuthenticated = localStorage.getItem(SESSION_AUTH_KEY) === 'true';
 
-            if (isAuthenticated && REQUIRED_PASSWORD !== null) {
+            if (isAuthenticated && REQUIRED_PASSWORD !== null && SHEET_EMBED_URL !== null) {
                 showView('content-view');
                 startRefreshLoop();
             } else {
