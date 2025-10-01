@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sichere Datenansicht</title>
+    <!-- Tailwind CSS CDN für modernes Design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Angepasste Schriftart */
+        body { font-family: 'Inter', sans-serif; }
+        /* Sicherstellen, dass die Inhaltsansicht den gesamten Bildschirm ausfüllt */
+        #content-view { min-height: 100vh; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Ladebildschirm/Overlay -->
+    <div id="loading-view" class="fixed inset-0 bg-white flex flex-col items-center justify-center z-50 transition-opacity duration-300">
+        <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p class="mt-4 text-lg font-medium text-gray-600">Lade Anwendung...</p>
+    </div>
+
+    <!-- 1. Passwort-Eingabeansicht (Standardmäßig ausgeblendet, bis geladen) -->
+    <div id="password-view" class="hidden min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-2xl transition duration-500 hover:shadow-indigo-300/50 border border-gray-100">
+            <h1 class="text-3xl font-extrabold text-center text-indigo-600 mb-2">Zugriff erforderlich</h1>
+            <p class="text-center text-gray-500 mb-6">Bitte geben Sie das erforderliche Passwort ein.</p>
+
+            <form id="password-form" onsubmit="checkPassword(event)">
+                <div class="mb-4">
+                    <label for="password-input" class="block text-sm font-medium text-gray-700 mb-1">Passwort</label>
+                    <input type="password" id="password-input" required
+                           class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-sm"
+                           placeholder="••••••••">
+                </div>
+                
+                <p id="error-message" class="text-red-600 text-sm mb-4 hidden font-medium text-center">Falsches Passwort. Bitte versuchen Sie es erneut.</p>
+
+                <button type="submit"
+                        class="w-full bg-indigo-600 text-white p-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-200 shadow-md shadow-indigo-500/50 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
+                    Zugriff gewähren
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. Geschützte Inhaltsansicht (Standardmäßig ausgeblendet) -->
+    <div id="content-view" class="hidden p-4 sm:p-8 bg-gray-900 text-white">
+        <header class="mb-6">
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-indigo-400">Vertrauliche Datenübersicht</h1>
+            <p class="text-gray-400 mt-1">Die Daten werden im Hintergrund automatisch aktualisiert. (Letzte Aktualisierung: <span id="last-update">...</span>)</p>
+            <button onclick="logOut()" class="mt-4 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
+                Abmelden & Sperren
+            </button>
+        </header>
+        
+        <!-- Tabelle, die alle paar Sekunden neu geladen wird -->
+        <div class="overflow-x-auto rounded-xl shadow-lg shadow-indigo-900/50">
+            <table class="min-w-full divide-y divide-gray-700" id="data-table">
+                <thead class="bg-indigo-700 text-indigo-100 sticky top-0">
+                    <tr>
+                        <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider">ID</th>
+                        <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider">Produkt</th>
+                        <th class="py-3 px-4 text-right text-xs font-semibold uppercase tracking-wider">Umsatz (Tsd.)</th>
+                        <th class="py-3 px-4 text-left text-xs font-semibold uppercase tracking-wider">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-gray-800 divide-y divide-gray-700" id="table-body">
+                    <!-- Daten werden hier per JavaScript eingefügt -->
+                    <tr><td colspan="4" class="text-center py-8 text-gray-500">Lade Daten...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Logging aktivieren
+        setLogLevel('Debug');
+
+        // Globale Variablen aus der Canvas-Umgebung
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Das geheime Passwort, das im Reader festgelegt werden soll
+        const SECRET_PASSWORD = "PASSWORT0815"; // <--- HIER DAS PASSWORT ANPASSEN!
+
+        // Firebase Instanzen
+        let app, db, auth;
+        let userId = null;
+        let refreshInterval = null;
+        const STATE_DOC_ID = 'state'; // Fester Dokumenten-ID für den Status
+
+        // Initialisiere Firebase und Authentifiziere
+        async function initFirebase() {
+            try {
+                if (Object.keys(firebaseConfig).length === 0) {
+                    console.error("Firebase Config fehlt. Die Persistenz wird nicht funktionieren.");
+                    return;
+                }
+
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Authentifizierung
+                await new Promise((resolve, reject) => {
+                    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                        unsubscribe(); // Listener nach erster Ausführung entfernen
+                        if (user) {
+                            userId = user.uid;
+                            resolve();
+                        } else {
+                            try {
+                                if (initialAuthToken) {
+                                    await signInWithCustomToken(auth, initialAuthToken);
+                                } else {
+                                    await signInAnonymously(auth);
+                                }
+                                userId = auth.currentUser.uid;
+                                resolve();
+                            } catch (error) {
+                                console.error("Firebase Auth Fehler:", error);
+                                reject(error);
+                            }
+                        }
+                    });
+                });
+
+                console.log("Firebase initialisiert und Benutzer-ID:", userId);
+
+                // Start der Hauptanwendung
+                await initApp();
+
+            } catch (error) {
+                console.error("Fehler bei der Firebase-Initialisierung:", error);
+                showView('password-view'); // Im Fehlerfall direkt Passwortabfrage zeigen
+            } finally {
+                // Ladebildschirm ausblenden
+                document.getElementById('loading-view').classList.add('opacity-0');
+                setTimeout(() => document.getElementById('loading-view').classList.add('hidden'), 300);
+            }
+        }
+
+        // Hauptinitialisierung: Prüft den gespeicherten Zustand
+        async function initApp() {
+            if (!userId) {
+                showView('password-view');
+                return;
+            }
+
+            const stateRef = doc(db, 'artifacts', appId, 'users', userId, 'password_status', STATE_DOC_ID);
+            
+            try {
+                const docSnap = await getDoc(stateRef);
+                if (docSnap.exists() && docSnap.data().status === 'correct') {
+                    console.log("Gespeicherter Status ist korrekt. Direkter Zugriff.");
+                    showView('content-view');
+                    startRefreshLoop();
+                } else {
+                    console.log("Kein korrekter Status gefunden. Passwortabfrage anzeigen.");
+                    showView('password-view');
+                }
+            } catch (error) {
+                console.error("Fehler beim Abrufen des Status:", error);
+                showView('password-view');
+            }
+        }
+
+        // Speichert den Status (Korrekt/Falsch) in Firestore
+        async function saveStatus(status) {
+            if (!userId || !db) return;
+            const stateRef = doc(db, 'artifacts', appId, 'users', userId, 'password_status', STATE_DOC_ID);
+            
+            try {
+                await setDoc(stateRef, { 
+                    status: status, 
+                    timestamp: new Date().toISOString() 
+                }, { merge: true });
+                console.log("Status erfolgreich in Firestore gespeichert:", status);
+            } catch (error) {
+                console.error("Fehler beim Speichern des Status:", error);
+            }
+        }
+
+        // Wechsel zwischen den Ansichten (Modale)
+        function showView(viewId) {
+            document.getElementById('password-view').classList.add('hidden');
+            document.getElementById('content-view').classList.add('hidden');
+            
+            const targetView = document.getElementById(viewId);
+            if (targetView) {
+                targetView.classList.remove('hidden');
+            }
+        }
+
+        // Generiert zufällige/simulierte Daten für die Tabelle
+        function generateTableData() {
+            const data = [];
+            const products = ["Alpha-Sensor", "Beta-Unit", "Gamma-Chip", "Delta-Modul", "Epsilon-Fusion", "Zeta-Kapsel"];
+            const statuses = ["Hohe Nachfrage", "Stabil", "Wartung", "Kritisch"];
+
+            for (let i = 0; i < 6; i++) {
+                const revenue = Math.floor(Math.random() * 900) + 100; // 100 bis 999
+                data.push({
+                    id: 1000 + i,
+                    product: products[i % products.length],
+                    revenue: revenue.toLocaleString('de-DE'),
+                    status: statuses[Math.floor(Math.random() * statuses.length)],
+                    statusColor: statuses[Math.floor(Math.random() * statuses.length)] === "Kritisch" ? 'bg-red-500' : 'bg-green-500'
+                });
+            }
+            return data;
+        }
+
+        // Aktualisiert die Tabelle mit neuen Daten
+        function updateTableData() {
+            const data = generateTableData();
+            const tableBody = document.getElementById('table-body');
+            tableBody.innerHTML = ''; // Vorherige Daten entfernen
+            
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-700 transition duration-100 border-b border-gray-700';
+                
+                // Status-Badge Logik
+                let statusClass = 'bg-gray-600';
+                if (item.status === 'Hohe Nachfrage') statusClass = 'bg-indigo-600';
+                else if (item.status === 'Stabil') statusClass = 'bg-emerald-600';
+                else if (item.status === 'Kritisch') statusClass = 'bg-red-600';
+
+                row.innerHTML = `
+                    <td class="py-3 px-4 text-sm font-medium text-gray-300">${item.id}</td>
+                    <td class="py-3 px-4 text-sm font-medium">${item.product}</td>
+                    <td class="py-3 px-4 text-sm text-right font-bold text-teal-400">${item.revenue} €</td>
+                    <td class="py-3 px-4 text-sm">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${statusClass} text-white">
+                            ${item.status}
+                        </span>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+            
+            // Uhrzeit der letzten Aktualisierung aktualisieren
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString('de-DE');
+            console.log("Tabelle erfolgreich aktualisiert.");
+        }
+
+        // Startet den automatischen Aktualisierungs-Loop (alle 5 Sekunden)
+        function startRefreshLoop() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            // Erste Aktualisierung sofort durchführen
+            updateTableData(); 
+            // Loop starten: Aktualisierung alle 5 Sekunden
+            refreshInterval = setInterval(updateTableData, 5000); 
+            console.log("Automatischer Daten-Refresh-Loop gestartet.");
+        }
+
+        // Stoppt den Aktualisierungs-Loop
+        function stopRefreshLoop() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            refreshInterval = null;
+        }
+
+        // Überprüft das eingegebene Passwort
+        window.checkPassword = async function(event) {
+            event.preventDefault();
+            const input = document.getElementById('password-input').value;
+            const errorMessage = document.getElementById('error-message');
+
+            if (input === SECRET_PASSWORD) {
+                errorMessage.classList.add('hidden');
+                
+                // 1. Status speichern
+                await saveStatus('correct');
+
+                // 2. Ansicht wechseln
+                showView('content-view');
+
+                // 3. Refresh Loop starten
+                startRefreshLoop();
+                
+            } else {
+                // 1. Status speichern (optional, kann Fehlerprotokolle füllen)
+                await saveStatus('incorrect');
+                
+                // 2. Fehlermeldung anzeigen
+                errorMessage.classList.remove('hidden');
+            }
+        }
+
+        // Meldet den Benutzer ab und sperrt die Seite
+        window.logOut = async function() {
+             if (confirm("Sind Sie sicher, dass Sie sich abmelden möchten? Sie müssen das Passwort erneut eingeben.")) {
+                // 1. Status zurücksetzen (sperren)
+                await saveStatus('locked');
+                
+                // 2. Refresh Loop stoppen
+                stopRefreshLoop();
+                
+                // 3. Eingabefeld leeren und zur Passwort-Ansicht wechseln
+                document.getElementById('password-input').value = '';
+                showView('password-view');
+            }
+        }
+
+        // App starten, sobald das Fenster geladen ist
+        window.onload = initFirebase;
+        
+        // Exponiere Funktionen für HTML-Elemente
+        window.startRefreshLoop = startRefreshLoop;
+        window.checkPassword = checkPassword;
+        window.logOut = logOut;
+
+    </script>
+</body>
+</html>
