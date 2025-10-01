@@ -23,6 +23,27 @@
             height: 100%;
             border: none;
         }
+        /* Style für Modal (ersetzt window.confirm/alert) */
+        .custom-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800 overflow-hidden">
@@ -44,9 +65,12 @@
 
             <!-- Konfigurationsfehler-Meldung -->
             <div id="config-error" class="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 mb-6 rounded-lg hidden">
-                <p class="font-bold">Konfigurationsfehler: Anwendung nicht bereit</p>
-                <p id="config-error-message">Bitte ersetzen Sie die Platzhalter im Skript, da Render die Variablen nicht in statische Seiten injiziert.</p>
-                <!-- NEU: Visuelles Debugging-Feedback -->
+                <p class="font-bold">Konfiguration UNVOLLSTÄNDIG</p>
+                <p id="config-error-message">
+                    Als statische Seite injiziert Render keine Umgebungsvariablen in den Browser. 
+                    **Aktion erforderlich:** Bitte ersetzen Sie die Platzhalter im Skript-Block.
+                </p>
+                <!-- Visuelles Debugging-Feedback -->
                 <ul class="mt-3 text-sm text-red-800 space-y-1 font-mono">
                     <li><span class="font-semibold">Passwort-Status:</span> <span id="debug-status-password"></span></li>
                     <li><span class="font-semibold">URL-Status:</span> <span id="debug-status-url"></span></li>
@@ -78,7 +102,7 @@
                 <h1 class="text-2xl sm:text-3xl font-extrabold text-indigo-400">Vertrauliche Datenübersicht</h1>
                 <p class="text-gray-400 mt-1 text-sm">Datenblatt wird im Hintergrund alle 5 Sekunden aktualisiert.</p>
             </div>
-            <button onclick="logOut()" 
+            <button onclick="showLogoutConfirmation()" 
                     class="ml-4 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition duration-150 shadow-md">
                 Abmelden & Sperren
             </button>
@@ -91,38 +115,58 @@
             </iframe>
         </div>
     </div>
+    
+    <!-- Custom Confirmation Modal (ersetzt window.confirm) -->
+    <div id="logout-modal" class="custom-modal hidden">
+        <div class="modal-content">
+            <h3 class="text-xl font-bold text-gray-800 mb-4">Abmeldung bestätigen</h3>
+            <p class="text-gray-600 mb-6">Sind Sie sicher, dass Sie sich abmelden möchten? Der Login-Status wird gelöscht und Sie müssen das Passwort erneut eingeben.</p>
+            <div class="flex justify-end space-x-3">
+                <button onclick="hideLogoutConfirmation()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium">
+                    Abbrechen
+                </button>
+                <button onclick="logOut()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
+                    Abmelden
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script>
         // ====================================================================
-        // WICHTIGE KONFIGURATION (MUSS MANUELL HIER ERFOLGEN)
+        // !!! WICHTIGE KONFIGURATION - BITTE HIER MANUELL ANPASSEN !!!
+        // Aufgrund der Statischen Site-Natur MÜSSEN diese Platzhalter ersetzt werden.
         // ====================================================================
         
-        // !!! AKTION ERFORDERLICH: PASSWORT HIER EINTRAGEN !!!
-        // Ersetzen Sie diesen Platzhalter durch den Wert Ihrer SECRET_PASSWORD Variable.
+        // 1. FALLBACK PASSWORT: Muss ersetzt werden.
         const SECRET_FALLBACK = 'SECRET_PASSWORT_HIER_EINSETZEN'; 
 
-        // !!! AKTION ERFORDERLICH: GOOGLE_URL HIER EINTRAGEN !!!
-        // Ersetzen Sie diesen Platzhalter durch den Wert Ihrer GOOGLE_URL Variable (die komplette Embed URL).
+        // 2. FALLBACK GOOGLE URL: Muss ersetzt werden.
         const URL_FALLBACK = 'GOOGLE_URL_HIER_EINSETZEN';
         
         // Konstanten für die App-Logik
         const MAX_ATTEMPTS = 3;
         
-        // Umgebungsvariablen-Namen (die nicht funktionieren)
+        // Umgebungsvariablen-Namen (werden im Browser zu 'undefined')
         const SECRET_VARIABLE_NAME = 'SECRET_PASSWORD'; 
         const URL_VARIABLE_NAME = 'GOOGLE_URL'; 
 
-        // Auslesen der potenziell injizierten Variablen (wird 'undefined' sein)
+        // --------------------------------------------------------------------
+        // PRÜFUNG DER RENDER-VARIABLEN (Wird 'undefined' sein)
+        // --------------------------------------------------------------------
         const INJECTED_SECRET = window[SECRET_VARIABLE_NAME];
         const INJECTED_URL = window[URL_VARIABLE_NAME];
         
-        // ENDGÜLTIGE WERTE: Prüft auf manuelle Eingabe des Fallbacks.
         
-        // 1. Passwort: Ist der Fallback gesetzt?
-        const REQUIRED_PASSWORD = (SECRET_FALLBACK.trim() !== 'SECRET_PASSWORT_HIER_EINSETZEN') ? SECRET_FALLBACK.trim() : null;
+        // ENDGÜLTIGE WERTE: Prüft zuerst, ob der Fallback-Platzhalter noch gesetzt ist.
+        
+        const PASSWORD_PLACEHOLDER = 'SECRET_PASSWORT_HIER_EINSETZEN';
+        // Wir verwenden den Fallback, da INJECTED_SECRET (window.SECRET_PASSWORD) immer undefined ist.
+        const REQUIRED_PASSWORD = (SECRET_FALLBACK.trim() !== PASSWORD_PLACEHALTER) ? SECRET_FALLBACK.trim() : null;
 
-        // 2. URL: Ist der Fallback gesetzt?
-        const SHEET_EMBED_URL = (URL_FALLBACK.trim() !== 'GOOGLE_URL_HIER_EINSETZEN') ? URL_FALLBACK.trim() : null;
+        const URL_PLACEHOLDER = 'GOOGLE_URL_HIER_EINSETZEN';
+        // Wir verwenden den Fallback, da INJECTED_URL (window.GOOGLE_URL) immer undefined ist.
+        const SHEET_EMBED_URL = (URL_FALLBACK.trim() !== URL_PLACEHOLDER) ? URL_FALLBACK.trim() : null;
         
         // Lokale Speicherschlüssel
         const ATTEMPTS_KEY = 'auth_attempts';          
@@ -174,6 +218,21 @@
         }
 
         /**
+         * Zeigt das Abmelde-Bestätigungsmodal.
+         */
+        window.showLogoutConfirmation = function() {
+            document.getElementById('logout-modal').classList.remove('hidden');
+        }
+
+        /**
+         * Versteckt das Abmelde-Bestätigungsmodal.
+         */
+        window.hideLogoutConfirmation = function() {
+            document.getElementById('logout-modal').classList.add('hidden');
+        }
+
+
+        /**
          * Führt einen "unsichtbaren" Refresh des iFrames durch.
          */
         function refreshSheet() {
@@ -221,17 +280,17 @@
             // Passwort-Status
             if (REQUIRED_PASSWORD === null) {
                 isConfigError = true;
-                debugElPassword.textContent = `FEHLER: Platzhalter '${SECRET_FALLBACK}' muss im Skript ersetzt werden.`;
+                debugElPassword.textContent = `FEHLER: Platzhalter '${PASSWORD_PLACEHOLDER}' muss ersetzt werden. [Render-Env: ${typeof INJECTED_SECRET}]`;
             } else {
-                 debugElPassword.textContent = `OK (Länge: ${REQUIRED_PASSWORD.length}). [Render Variable: ${typeof INJECTED_SECRET === 'undefined' ? 'undefined' : 'gefunden'}]`;
+                 debugElPassword.textContent = `OK (Länge: ${REQUIRED_PASSWORD.length}). [Render-Env: ${typeof INJECTED_SECRET}]`;
             }
 
             // URL-Status
             if (SHEET_EMBED_URL === null) {
                 isConfigError = true;
-                debugElUrl.textContent = `FEHLER: Platzhalter '${URL_FALLBACK}' muss im Skript ersetzt werden.`;
+                debugElUrl.textContent = `FEHLER: Platzhalter '${URL_PLACEHOLDER}' muss ersetzt werden. [Render-Env: ${typeof INJECTED_URL}]`;
             } else {
-                 debugElUrl.textContent = `OK (Länge: ${SHEET_EMBED_URL.length}). [Render Variable: ${typeof INJECTED_URL === 'undefined' ? 'undefined' : 'gefunden'}]`;
+                 debugElUrl.textContent = `OK (Länge: ${SHEET_EMBED_URL.length}). [Render-Env: ${typeof INJECTED_URL}]`;
             }
             
             // --- ANZEIGE DES KONFIGURATIONSFEHLERS ---
@@ -363,15 +422,11 @@
          * Setzt den permanenten Login-Status zurück.
          */
         window.logOut = function() {
-            // Angepasstes UI-Modal für die Bestätigung
-            const confirmLogout = window.confirm ? window.confirm("Sind Sie sicher, dass Sie sich abmelden möchten? Der Login-Status wird gelöscht.") : true;
-
-            if (confirmLogout) {
-                stopRefreshLoop();
-                localStorage.removeItem(SESSION_AUTH_KEY); 
-                document.getElementById('password-input').value = '';
-                initApp(); 
-            }
+            hideLogoutConfirmation();
+            stopRefreshLoop();
+            localStorage.removeItem(SESSION_AUTH_KEY); 
+            document.getElementById('password-input').value = '';
+            initApp(); 
         }
 
         /**
