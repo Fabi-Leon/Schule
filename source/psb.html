@@ -42,10 +42,10 @@
             <h1 class="text-3xl font-extrabold text-center text-indigo-600 mb-2" id="header-title">Zugriff erforderlich</h1>
             <p class="text-center text-gray-500 mb-6" id="lockout-text">Bitte geben Sie das erforderliche Passwort ein.</p>
 
-            <!-- Konfigurationsfehler-Meldung (jetzt für beide Variablen sichtbar) -->
+            <!-- Konfigurationsfehler-Meldung -->
             <div id="config-error" class="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 mb-6 rounded-lg hidden">
                 <p class="font-bold">Konfigurationsfehler: Anwendung nicht bereit</p>
-                <p id="config-error-message">Mindestens eine notwendige Variable fehlt.</p>
+                <p id="config-error-message">Bitte ersetzen Sie die Platzhalter im Skript, da Render die Variablen nicht in statische Seiten injiziert.</p>
                 <!-- NEU: Visuelles Debugging-Feedback -->
                 <ul class="mt-3 text-sm text-red-800 space-y-1 font-mono">
                     <li><span class="font-semibold">Passwort-Status:</span> <span id="debug-status-password"></span></li>
@@ -94,43 +94,35 @@
 
     <script>
         // ====================================================================
-        // WICHTIGE KONFIGURATION (MUSS ANGEPASST WERDEN)
+        // WICHTIGE KONFIGURATION (MUSS MANUELL HIER ERFOLGEN)
         // ====================================================================
         
         // !!! AKTION ERFORDERLICH: PASSWORT HIER EINTRAGEN !!!
-        // Da SECRET_PASSWORD nicht injiziert wird, muss der Wert hier als Fallback hinterlegt werden.
-        const SECRET_FALLBACK = 'PASST_DEIN_GEHEIMES_PASSWORT_HIER_EIN'; 
+        // Ersetzen Sie diesen Platzhalter durch den Wert Ihrer SECRET_PASSWORD Variable.
+        const SECRET_FALLBACK = 'SECRET_PASSWORT_HIER_EINSETZEN'; 
 
         // !!! AKTION ERFORDERLICH: GOOGLE_URL HIER EINTRAGEN !!!
-        // Da GOOGLE_URL nicht injiziert wird, muss der Wert hier als Fallback hinterlegt werden.
-        const URL_FALLBACK = 'https://docs.google.com/spreadsheets/u/0/d/10um-Jwoayka_kPFUsnQkCmm7pMq0Z2qK2ptVIjenWMw/htmlview';
+        // Ersetzen Sie diesen Platzhalter durch den Wert Ihrer GOOGLE_URL Variable (die komplette Embed URL).
+        const URL_FALLBACK = 'GOOGLE_URL_HIER_EINSETZEN';
         
-        // Passwörter und Lockout-Regeln
+        // Konstanten für die App-Logik
         const MAX_ATTEMPTS = 3;
         
-        // Umgebungsvariablen-Namen
+        // Umgebungsvariablen-Namen (die nicht funktionieren)
         const SECRET_VARIABLE_NAME = 'SECRET_PASSWORD'; 
         const URL_VARIABLE_NAME = 'GOOGLE_URL'; 
 
-        // Auslesen der potenziell injizierten Variablen
+        // Auslesen der potenziell injizierten Variablen (wird 'undefined' sein)
         const INJECTED_SECRET = window[SECRET_VARIABLE_NAME];
         const INJECTED_URL = window[URL_VARIABLE_NAME];
         
-        // ENDGÜLTIGE WERTE: Priorisiert Injektion, fällt auf Fallback zurück.
+        // ENDGÜLTIGE WERTE: Prüft auf manuelle Eingabe des Fallbacks.
         
-        // 1. Passwort
-        const REQUIRED_PASSWORD = (
-            typeof INJECTED_SECRET !== 'undefined' && 
-            INJECTED_SECRET !== null && 
-            String(INJECTED_SECRET).trim() !== ''
-        ) ? String(INJECTED_SECRET).trim() : (SECRET_FALLBACK.trim() !== 'PASST_DEIN_GEHEIMES_PASSWORT_HIER_EIN' ? SECRET_FALLBACK.trim() : null);
+        // 1. Passwort: Ist der Fallback gesetzt?
+        const REQUIRED_PASSWORD = (SECRET_FALLBACK.trim() !== 'SECRET_PASSWORT_HIER_EINSETZEN') ? SECRET_FALLBACK.trim() : null;
 
-        // 2. URL
-        const SHEET_EMBED_URL = (
-            typeof INJECTED_URL !== 'undefined' && 
-            INJECTED_URL !== null && 
-            String(INJECTED_URL).trim() !== ''
-        ) ? String(INJECTED_URL).trim() : (URL_FALLBACK.trim() !== 'https://docs.google.com/spreadsheets/u/0/d/10um-Jwoayka_kPFUsnQkCmm7pMq0Z2qK2ptVIjenWMw/htmlview' ? URL_FALLBACK.trim() : null);
+        // 2. URL: Ist der Fallback gesetzt?
+        const SHEET_EMBED_URL = (URL_FALLBACK.trim() !== 'GOOGLE_URL_HIER_EINSETZEN') ? URL_FALLBACK.trim() : null;
         
         // Lokale Speicherschlüssel
         const ATTEMPTS_KEY = 'auth_attempts';          
@@ -219,46 +211,28 @@
             const form = document.getElementById('password-form');
             const lockoutText = document.getElementById('lockout-text');
             const configError = document.getElementById('config-error');
-            const configErrorMsg = document.getElementById('config-error-message');
             const debugElPassword = document.getElementById('debug-status-password');
             const debugElUrl = document.getElementById('debug-status-url');
             const errorMsg = document.getElementById('error-message');
             
             // --- DEBUG & KONFIGURATIONSPRÜFUNG ---
             let isConfigError = false;
-            let debugStatusPass = "";
-            let debugStatusUrl = "";
-
+            
             // Passwort-Status
             if (REQUIRED_PASSWORD === null) {
                 isConfigError = true;
-                if (typeof INJECTED_SECRET === 'undefined' || INJECTED_SECRET === null) {
-                    debugStatusPass = `FEHLER: SECRET_PASSWORD nicht injiziert (window.undefined).`;
-                } else if (SECRET_FALLBACK.trim() === 'PASST_DEIN_GEHEIMES_PASSWORT_HIER_EIN') {
-                    debugStatusPass = `FEHLER: Platzhalter ('PASST_DEIN_...') ist noch gesetzt.`;
-                } else {
-                    debugStatusPass = `FEHLER: Unbekannt.`;
-                }
+                debugElPassword.textContent = `FEHLER: Platzhalter '${SECRET_FALLBACK}' muss im Skript ersetzt werden.`;
             } else {
-                 debugStatusPass = `OK (Länge: ${REQUIRED_PASSWORD.length}). Quelle: ${INJECTED_SECRET ? 'INJEKTION' : 'FALLBACK'}`;
+                 debugElPassword.textContent = `OK (Länge: ${REQUIRED_PASSWORD.length}). [Render Variable: ${typeof INJECTED_SECRET === 'undefined' ? 'undefined' : 'gefunden'}]`;
             }
 
             // URL-Status
             if (SHEET_EMBED_URL === null) {
                 isConfigError = true;
-                if (typeof INJECTED_URL === 'undefined' || INJECTED_URL === null) {
-                    debugStatusUrl = `FEHLER: GOOGLE_URL nicht injiziert (window.undefined).`;
-                } else if (URL_FALLBACK.includes('10um-Jwoayka')) { // Prüft auf den Default-Platzhalter
-                    debugStatusUrl = `FEHLER: Platzhalter URL ist noch gesetzt.`;
-                } else {
-                    debugStatusUrl = `FEHLER: Unbekannt.`;
-                }
+                debugElUrl.textContent = `FEHLER: Platzhalter '${URL_FALLBACK}' muss im Skript ersetzt werden.`;
             } else {
-                 debugStatusUrl = `OK (Länge: ${SHEET_EMBED_URL.length}). Quelle: ${INJECTED_URL ? 'INJEKTION' : 'FALLBACK'}`;
+                 debugElUrl.textContent = `OK (Länge: ${SHEET_EMBED_URL.length}). [Render Variable: ${typeof INJECTED_URL === 'undefined' ? 'undefined' : 'gefunden'}]`;
             }
-
-            debugElPassword.textContent = debugStatusPass;
-            debugElUrl.textContent = debugStatusUrl;
             
             // --- ANZEIGE DES KONFIGURATIONSFEHLERS ---
             if (isConfigError) {
@@ -267,7 +241,6 @@
                 configError.classList.remove('hidden');
                 document.getElementById('header-title').textContent = "Konfiguration UNVOLLSTÄNDIG";
                 lockoutText.classList.add('hidden');
-                configErrorMsg.textContent = "Bitte ersetzen Sie die Platzhalter im Skript, da die Umgebungsvariablen nicht in den Browser injiziert werden.";
                 return true; 
             } else {
                 // Konfiguration OK
