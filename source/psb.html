@@ -81,7 +81,6 @@
         
         <!-- Google Sheets Einbettung (Fullscreen) -->
         <div class="flex-grow iframe-container">
-            <!-- WICHTIG: Die URL wurde auf 'htmlview' geändert, was oft besser für die Anzeige in iFrames funktioniert -->
             <iframe id="sheet-iframe" title="Eingebettetes Google Sheet" 
                     src="" allowfullscreen>
             </iframe>
@@ -99,9 +98,15 @@
         // Passwörter und Lockout-Regeln
         const MAX_ATTEMPTS = 3;
         
-        // STRICT PASSWORD CHECK: Wenn window.SECRET_PASSWORD nicht gesetzt ist, ist REQUIRED_PASSWORD NULL.
-        // Das Formular wird dann deaktiviert und eine Fehlermeldung angezeigt.
-        const REQUIRED_PASSWORD = (typeof window.SECRET_PASSWORD !== 'undefined' && window.SECRET_PASSWORD !== '') ? window.SECRET_PASSWORD : null;
+        // NEUE PRÜFUNG: Sicherstellen, dass die Variable existiert und nicht leer ist.
+        // Wenn die Plattform die Variable als leeren String oder undefined setzt, wird REQUIRED_PASSWORD null.
+        const SECRET_VARIABLE = window.SECRET_PASSWORD;
+
+        const REQUIRED_PASSWORD = (
+            typeof SECRET_VARIABLE !== 'undefined' && 
+            SECRET_VARIABLE !== null && 
+            String(SECRET_VARIABLE).trim() !== ''
+        ) ? String(SECRET_VARIABLE).trim() : null;
         
         // Lokale Speicherschlüssel
         const ATTEMPTS_KEY = 'auth_attempts';          // Zählt die Fehlversuche (0 bis MAX_ATTEMPTS)
@@ -184,7 +189,7 @@
 
         /**
          * Prüft, ob der Benutzer gesperrt ist und aktualisiert die UI/Titel.
-         * @returns {boolean} True, wenn gesperrt.
+         * @returns {boolean} True, wenn gesperrt oder Konfigurationsfehler vorliegt.
          */
         function checkLockout() {
             const lockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
@@ -202,12 +207,14 @@
 
             // 1. Konfigurationsprüfung
             if (REQUIRED_PASSWORD === null) {
+                // Deaktiviert das Formular und zeigt den Fehler an
                 form.classList.add('hidden');
                 configError.classList.remove('hidden');
                 document.getElementById('header-title').textContent = "Konfiguration UNVOLLSTÄNDIG";
                 lockoutText.classList.add('hidden');
                 return true; // Blockiert den Zugriff
             } else {
+                // Konfiguration OK, Formular wird angezeigt
                 form.classList.remove('hidden');
                 configError.classList.add('hidden');
                 lockoutText.classList.remove('hidden');
@@ -282,10 +289,8 @@
         window.checkPassword = function(event) {
             event.preventDefault();
             
-            // Wenn REQUIRED_PASSWORD NULL ist (Konfigurationsfehler), hier abbrechen.
-            if (REQUIRED_PASSWORD === null) return;
-            // Wenn gesperrt ist, abbrechen.
-            if (checkLockout()) return; 
+            // Wenn Konfigurationsfehler oder Lockout, abbrechen.
+            if (REQUIRED_PASSWORD === null || checkLockout()) return; 
             
             const inputEl = document.getElementById('password-input');
             const input = inputEl.value;
@@ -359,15 +364,18 @@
          * Initialisiert die Anwendung und prüft den Authentifizierungsstatus.
          */
         function initApp() {
+            // Debugging-Ausgabe zur Analyse des Passwort-Problems
+            const passwordState = REQUIRED_PASSWORD === null ? "FEHLT ODER IST LEER" : "OK (Passwortlänge: " + REQUIRED_PASSWORD.length + ")";
+            console.log(`Debug: Konfiguration des geheimen Passworts: ${passwordState}`);
+            
             // 1. Ladebildschirm ausblenden
             document.getElementById('loading-view').classList.add('opacity-0');
             setTimeout(() => document.getElementById('loading-view').classList.add('hidden'), 300);
 
-            // 2. Konfigurationsprüfung (neu)
+            // 2. Konfigurationsprüfung
             if (REQUIRED_PASSWORD === null) {
                 showView('password-view');
                 checkLockout(); // Zeigt den Konfigurationsfehler
-                console.error("Konfigurationsfehler: SECRET_PASSWORD fehlt!");
                 return;
             }
 
