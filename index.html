@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SV Team | Eure Schülersprecher</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --secondary-color: #1e40af;
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: var(--white);
+            padding: 2rem 1rem;
+            text-align: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        nav {
+            background: var(--white);
+            padding: 1rem;
+            text-align: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        nav a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        section {
+            margin-bottom: 3rem;
+            background: var(--white);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: var(--secondary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 0.5rem;
+        }
+
+        /* Team Grid */
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .team-member {
+            text-align: center;
+            padding: 1.5rem;
+            background: #f1f5f9;
+            border-radius: 8px;
+            transition: transform 0.2s;
+        }
+
+        .team-member:hover {
+            transform: translateY(-5px);
+        }
+
+        .role {
+            display: block;
+            font-size: 0.9rem;
+            color: var(--primary-color);
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+        }
+
+        .name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        /* Checkliste Erfolge */
+        .success-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .success-list li {
+            padding: 0.8rem 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+        }
+
+        .success-list li::before {
+            content: "✅";
+            margin-right: 10px;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Unsere SV: Gemeinsam für euch!</h1>
+        <p>Eure Schülersprecher Fabi, Leon & Team</p>
+    </header>
+
+    <nav>
+        <a href="#team">Das Team</a>
+        <a href="#ziele">Unsere Ziele</a>
+        <a href="#erfolge">Erfolge</a>
+    </nav>
+
+    <div class="container">
+        
+        <section id="team">
+            <h2>Wer wir sind</h2>
+            <div class="team-grid">
+                <div class="team-member">
+                    <span class="role">Schülersprecherin</span>
+                    <span class="name">Sajida Al Hamid</span>
+                </div>
+                <div class="team-member">
+                    <span class="role">Vertreter</span>
+                    <span class="name">Fabian Schilling</span>
+                </div>
+                <div class="team-member">
+                    <span class="role">Vertreter</span>
+                    <span class="name">Leon Schug</span>
+                </div>
+                <div class="team-member">
+                    <span class="role">Beisitzerin</span>
+                    <span class="name">Emely Lara Salm</span>
+                </div>
+            </div>
+        </section>
+
+        <section id="ziele">
+            <h2>Unsere Ziele</h2>
+            <p>Wir haben uns für dieses Schuljahr viel vorgenommen, um den Schulalltag für alle besser zu gestalten:</p>
+            <ul>
+                <li><strong>Mehr Mitsprache:</strong> Regelmäßige Umfragen zu wichtigen Themen.</li>
+                <li><strong>Schulhof-Gestaltung:</strong> Mehr Sitzmöglichkeiten und Sportangebote in den Pausen.</li>
+                <li><strong>Events:</strong> Organisation von Schulfesten und Sportturnieren.</li>
+                <li><strong>Digitalisierung:</strong> Einsatz für eine bessere WLAN-Abdeckung für Schüler.</li>
+            </ul>
+        </section>
+
+        <section id="erfolge">
+            <h2>Was wir schon erreicht haben</h2>
+            <ul class="success-list">
+                <li>Wasserspender in der Aula installiert</li>
+                <li>Neue Bälle für die Pausenausleihe angeschafft</li>
+                <li>Den Kiosk-Verkauf um gesündere Snacks erweitert</li>
+                <li>Erfolgreiches Nikolaus-Event organisiert</li>
+            </ul>
+        </section>
+
+    </div>
+
+    <footer>
+        &copy; 2026 SV-Team der [Name deiner Schule einfügen] | Erstellt von Fabi & Leon
+    </footer>
+
+</body>
+</html>
