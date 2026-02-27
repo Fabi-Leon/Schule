@@ -3,192 +3,167 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SV Team | Eure Schülersprecher</title>
+    <meta name="robots" content="noindex, nofollow">
+    <title>SV-Portal | Fabi & Leon</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;700&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            --primary-color: #2563eb;
-            --secondary-color: #1e40af;
-            --bg-color: #f8fafc;
-            --text-color: #1e293b;
-            --white: #ffffff;
+            --accent: #00d2ff;
+            --accent-grad: linear-gradient(45deg, #00d2ff, #3a7bd5);
+            --glass: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Poppins', sans-serif;
             margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            line-height: 1.6;
+            background: #0f172a; /* Dark-Mode Deep Blue */
+            color: white;
+            overflow-x: hidden;
+            background-attachment: fixed;
         }
 
-        header {
-            background-color: var(--primary-color);
-            color: var(--white);
-            padding: 2rem 1rem;
-            text-align: center;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        nav {
-            background: var(--white);
-            padding: 1rem;
-            text-align: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        nav a {
-            margin: 0 15px;
-            text-decoration: none;
-            color: var(--primary-color);
-            font-weight: bold;
+        /* Dynamischer Hintergrund-Effekt */
+        .bg-glow {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, #1e293b 0%, #0f172a 100%);
+            z-index: -1;
         }
 
         .container {
-            max-width: 1000px;
-            margin: 2rem auto;
-            padding: 0 1rem;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 100px 20px;
         }
 
-        section {
-            margin-bottom: 3rem;
-            background: var(--white);
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        /* Glas-Karten-Effekt */
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 40px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0; /* Für die Einblend-Animation */
+        }
+
+        .glass-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .glass-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border-color: var(--accent);
         }
 
         h2 {
-            color: var(--secondary-color);
-            border-bottom: 2px solid var(--primary-color);
-            padding-bottom: 0.5rem;
+            font-size: 2.5rem;
+            background: var(--accent-grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 20px;
         }
 
-        /* Team Grid */
+        /* Team Grid mit Click-Effekt */
         .team-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-top: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
         }
 
-        .team-member {
+        .member {
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            cursor: pointer;
             text-align: center;
-            padding: 1.5rem;
-            background: #f1f5f9;
-            border-radius: 8px;
-            transition: transform 0.2s;
+            border: 1px solid transparent;
         }
 
-        .team-member:hover {
-            transform: translateY(-5px);
+        .member:active {
+            transform: scale(0.95);
         }
 
-        .role {
-            display: block;
-            font-size: 0.9rem;
-            color: var(--primary-color);
-            font-weight: bold;
-            margin-bottom: 0.5rem;
-        }
+        .member b { color: var(--accent); display: block; font-size: 1.2rem; }
 
-        .name {
-            font-size: 1.1rem;
-            font-weight: 600;
-        }
-
-        /* Checkliste Erfolge */
-        .success-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .success-list li {
-            padding: 0.8rem 0;
-            border-bottom: 1px solid #eee;
+        /* Erfolgs-Counter Animation */
+        .success-item {
             display: flex;
             align-items: center;
+            margin: 15px 0;
+            font-size: 1.2rem;
         }
 
-        .success-list li::before {
-            content: "✅";
-            margin-right: 10px;
+        .success-item i {
+            margin-right: 15px;
+            color: #4ade80;
         }
 
-        footer {
-            text-align: center;
-            padding: 2rem;
-            font-size: 0.9rem;
-            color: #64748b;
+        @media (max-width: 768px) {
+            h2 { font-size: 1.8rem; }
+            .container { padding-top: 60px; }
         }
     </style>
 </head>
 <body>
+    <div class="bg-glow"></div>
 
-    <header>
-        <h1>Unsere SV: Gemeinsam für euch!</h1>
-        <p>Eure Schülersprecher Fabi, Leon & Team</p>
-    </header>
+    <div id="header-placeholder"></div>
 
-    <nav>
-        <a href="#team">Das Team</a>
-        <a href="#ziele">Unsere Ziele</a>
-        <a href="#erfolge">Erfolge</a>
-    </nav>
+    <main class="container">
+        <section class="glass-card animate__animated animate__fadeInUp">
+            <h2>Unsere Mission</h2>
+            <p>Wir sind angetreten, um Schule nicht nur als Ort zum Lernen, sondern als Ort zum Leben zu gestalten. Fabi & Leon geben Gas!</p>
+        </section>
 
-    <div class="container">
-        
-        <section id="team">
-            <h2>Wer wir sind</h2>
+        <section id="team" class="glass-card">
+            <h2>Das Team hinter dem Erfolg</h2>
             <div class="team-grid">
-                <div class="team-member">
-                    <span class="role">Schülersprecherin</span>
-                    <span class="name">Sajida Al Hamid</span>
-                </div>
-                <div class="team-member">
-                    <span class="role">Vertreter</span>
-                    <span class="name">Fabian Schilling</span>
-                </div>
-                <div class="team-member">
-                    <span class="role">Vertreter</span>
-                    <span class="name">Leon Schug</span>
-                </div>
-                <div class="team-member">
-                    <span class="role">Beisitzerin</span>
-                    <span class="name">Emely Lara Salm</span>
-                </div>
+                <div class="member"><b>Sajida Al Hamid</b>Schülersprecherin</div>
+                <div class="member"><b>Fabian Schilling</b>Vertreter</div>
+                <div class="member"><b>Leon Schug</b>Vertreter</div>
+                <div class="member"><b>Emely Lara Salm</b>Beisitzerin</div>
             </div>
         </section>
 
-        <section id="ziele">
-            <h2>Unsere Ziele</h2>
-            <p>Wir haben uns für dieses Schuljahr viel vorgenommen, um den Schulalltag für alle besser zu gestalten:</p>
-            <ul>
-                <li><strong>Mehr Mitsprache:</strong> Regelmäßige Umfragen zu wichtigen Themen.</li>
-                <li><strong>Schulhof-Gestaltung:</strong> Mehr Sitzmöglichkeiten und Sportangebote in den Pausen.</li>
-                <li><strong>Events:</strong> Organisation von Schulfesten und Sportturnieren.</li>
-                <li><strong>Digitalisierung:</strong> Einsatz für eine bessere WLAN-Abdeckung für Schüler.</li>
-            </ul>
+        <section id="erfolge" class="glass-card">
+            <h2>Schon gerissen</h2>
+            <div class="success-item">🚀 Neues WLAN-Konzept vorgelegt</div>
+            <div class="success-item">🥤 Wasserspender 2.0 installiert</div>
+            <div class="success-item">🍕 Pizza-Tag eingeführt</div>
         </section>
+    </main>
 
-        <section id="erfolge">
-            <h2>Was wir schon erreicht haben</h2>
-            <ul class="success-list">
-                <li>Wasserspender in der Aula installiert</li>
-                <li>Neue Bälle für die Pausenausleihe angeschafft</li>
-                <li>Den Kiosk-Verkauf um gesündere Snacks erweitert</li>
-                <li>Erfolgreiches Nikolaus-Event organisiert</li>
-            </ul>
-        </section>
+    <div id="footer-placeholder"></div>
 
-    </div>
+    <script>
+        // Header & Footer laden (Einfachheitshalber direkt im DOM manipuliert)
+        document.addEventListener("DOMContentLoaded", function() {
+            // Animation beim Scrollen triggern
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible', 'animate__animated', 'animate__fadeInUp');
+                    }
+                });
+            });
 
-    <footer>
-        &copy; 2026 SV-Team der Anton-Hansen-Schule Ottweiler | Erstellt von Fabi & Leon
-    </footer>
+            document.querySelectorAll('.glass-card').forEach(card => {
+                observer.observe(card);
+            });
+        });
 
+        // Simuliere Header-Inhalt (da du echte Dateien willst, siehe unten)
+        fetch('header.html').then(res => res.text()).then(data => document.getElementById('header-placeholder').innerHTML = data);
+        fetch('footer.html').then(res => res.text()).then(data => document.getElementById('footer-placeholder').innerHTML = data);
+    </script>
 </body>
 </html>
